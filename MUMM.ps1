@@ -27,7 +27,7 @@ function Get-NewPosition {
 
 # --- Style Variables ---
 $ParagraphSize = 12
-$ParagraphFamily = "Arial"
+$ParagraphFamily = "Poppins"
 $Paragraph = New-Object System.Drawing.Font($ParagraphFamily, $ParagraphSize)
 $StartPosition = New-Object System.Drawing.Point(10, 10)
 
@@ -40,7 +40,6 @@ $MainForm.Height = 768
 
 # --- Mailbox Form ---
 $MailboxLabelLocation = $StartPosition
-$MailboxLabelLeading = 40
 $MailboxLabel = New-Object System.Windows.Forms.Label
 $MailboxLabel.Text = "Enter the mailbox name or email address:"
 $MailboxLabel.Location = $MailboxLabelLocation
@@ -48,6 +47,11 @@ $MailboxLabel.AutoSize = $true
 $MailboxLabel.Font = $Paragraph
 $MainForm.Controls.Add($MailboxLabel)
 
+<#
+To-do: You forgot to implement multiple mailboxes, it's not just for multiple users!!!!
+Enable multiline, or implement something where it lets users enter multiple
+names or email addresses in one-line, separated by ';'
+#>
 $MailboxTextbox = New-Object System.Windows.Forms.TextBox
 $MailboxTextbox.Location = Get-NewPosition -BasePosition $StartPosition -XOffset 0 -YOffset 30
 $MailboxTextbox.Width = $MainForm.ClientSize.Width - 30
@@ -74,11 +78,35 @@ $MailboxSearchBtn.Font = $Paragraph
 $MailboxSearchBtn.Text = "SEARCH"
 $MainForm.Controls.Add($MailboxSearchBtn)
 
+$AddUserList = New-Object System.Windows.Forms.ListView
+$AddUserList.Location = Get-NewPosition $StartPosition 0 150
+$AddUserList.Width = ($MainForm.ClientSize.Width / 2) - 30
+$AddUserList.Height = 300
+$AddUserList.Columns.Add("Users to add", ($MainForm.ClientSize.Width / 2) - 35)
+$AddUserList.MultiSelect = $true
+$AddUserList.View = "Details"
+$AddUserList.Font = $Paragraph
+$MainForm.Controls.Add($AddUserList)
+
+$AddUserListBtn = New-Object System.Windows.Forms.Button
+$AddUserListBtn.Location = Get-NewPosition $StartPosition 0 500
+$AddUserListBtn.Text = "Add"
+$AddUserListBtn.Font = $Paragraph
+$AddUserListBtn.Width = ($MainForm.ClientSize.Width / 2) - 30
+$MainForm.Controls.Add($AddUserListBtn)
+
+$RemoveUserListBtn = New-Object System.Windows.Forms.Button
+$RemoveUserListBtn.Location = Get-NewPosition $StartPosition 0 520
+$RemoveUserListBtn.Text = "Remove"
+$RemoveUserListBtn.Font = $Paragraph
+$RemoveUserListBtn.Width = ($MainForm.ClientSize.Width / 2) - 30
+$MainForm.Controls.Add($RemoveUserListBtn)
+
 $MailboxUserList = New-Object System.Windows.Forms.ListView
-$MailboxUserList.Location = Get-NewPosition $StartPosition 0 150
+$MailboxUserList.Location = Get-NewPosition $StartPosition ($MainForm.ClientSize.Width / 2) 150
 $MailboxUserList.Width = ($MainForm.ClientSize.Width / 2) - 30
-$MailboxUserList.Height = 400
-$MailboxUserList.Columns.Add("Users", ($MainForm.ClientSize.Width / 2) - 40)
+$MailboxUserList.Height = 300
+$MailboxUserList.Columns.Add("Current users", ($MainForm.ClientSize.Width / 2) - 35)
 $MailboxUserList.MultiSelect = $true
 $MailboxUserList.View = "Details"
 $MailboxUserList.Font = $Paragraph
@@ -87,23 +115,27 @@ $MainForm.Controls.Add($MailboxUserList)
 
 
 
-
 # --- Event Handlers ---
+# To-do: Modularize this....
 $MailboxSearchBtn.Add_Click({
     $MailboxUserList.Items.Clear()
     $MailboxName = $MailboxTextbox.Text
+    if ($MailboxSelectBtn.Checked) {
+        $CurrentList = (Get-MailboxPermission $MailboxName | Sort-Object User).User
+    } elseif ($CalendarSelectBtn.Checked) {
+        $CalendarName = $MailboxName + ":\Calendar"
+        $CurrentList = (Get-MailboxFolderPermission $CalendarName | Sort-Object {$_.User.DisplayName}).User
+    } else {
+        Write-Host "Please select Mailbox or Calendar to confirm which operation to perform!"
+    }
     Write-Host "Searching $MailboxName"
-    $CurrentList = (Get-MailboxPermission $MailboxName | Sort-Object User).User
     foreach ($Username in $CurrentList) {
-        if ($Username -notlike "NT AUTHORITY*") {
+        if ($Username -notlike "NT AUTHORITY*" -and $Username.DisplayName -ne "Default" -and $Username.DisplayName -ne "Anonymous") {
             $ListViewItem = New-Object System.Windows.Forms.ListViewItem
             $ListViewItem.Text = $Username
             $MailboxUserList.Items.Add($ListViewItem)
         }
     }
-    
-    Write-Host $UserList
 })
-
-$MainForm.ShowDialog()
 cls
+$MainForm.ShowDialog()

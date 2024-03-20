@@ -15,6 +15,23 @@ try {
 }
 Add-Type -Assembly System.Windows.Forms
 
+
+# --- Hide PowerShell console window ---
+Add-Type -Name Window -Namespace Console -MemberDefinition '
+[DllImport("kernel32.dll")]
+public static extern IntPtr GetConsoleWindow();
+
+[DllImport("user32.dll")]
+public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+'
+
+$ConsoleHandle = [Console.Window]::GetConsoleWindow()
+
+if ($ConsoleHandle -ne [IntPtr]::Zero) {
+    [Console.Window]::ShowWindow($ConsoleHandle, 0)
+}
+# --- end ---
+
 # --- Style Function ---
 function Get-NewPosition {
     param (
@@ -42,6 +59,7 @@ $Paragraph = New-Object System.Drawing.Font($ParagraphFamily, $ParagraphSize)
 $StartPosition = New-Object System.Drawing.Point(10, 10)
 $Width100 = $MainForm.ClientSize.Width - 30
 $Width50 = ($MainForm.ClientSize.Width/2) - 30
+#To-do: maybe there's an easier way to Fill width? Fill?
 
 # --- Mailbox Form ---
 $RadioGroupBox1 = New-Object System.Windows.Forms.GroupBox
@@ -66,7 +84,7 @@ $RadioGroupBox1.Controls.Add($CalendarSelectBtn)
 $RadioGroupBox2 = New-Object System.Windows.Forms.GroupBox
 $RadioGroupBox2.Location = Get-NewPosition $StartPosition ($MainForm.Width / 2) 0
 $RadioGroupBox2.Font = $Paragraph
-$RadioGroupBox2.Width = $Width50 - 22 #ignore this....
+$RadioGroupBox2.Width = $Width50
 $RadioGroupBox2.Text = "Add or remove?"
 $RadioGroupBox2.Height = 60
 $MainForm.Controls.Add($RadioGroupBox2)
@@ -82,8 +100,15 @@ $RemoveRadioBtn.Text = "Remove"
 $RadioGroupBox2.Controls.Add($AddRadioBtn)
 $RadioGroupBox2.Controls.Add($RemoveRadioBtn)
 
+$AutoMapCheckBox = New-Object System.Windows.Forms.CheckBox
+$AutoMapCheckBox.Location = Get-NewPosition $StartPosition 0 60
+$AutoMapCheckBox.Font = $Paragraph
+$AutoMapCheckBox.AutoSize = $true
+$AutoMapCheckBox.Text = "Enable auto-mapping? (mailbox only)"
+$MainForm.Controls.Add($AutoMapCheckBox)
+
 $Spreadsheet = New-Object System.Windows.Forms.DataGridView
-$Spreadsheet.Location = Get-NewPosition $StartPosition 0 80
+$Spreadsheet.Location = Get-NewPosition $StartPosition 0 100
 $Spreadsheet.Width = $Width100
 $Spreadsheet.Height = 200
 $Spreadsheet.Font = $Paragraph
@@ -92,10 +117,11 @@ $Spreadsheet.ColumnHeadersVisible = $true
 $Spreadsheet.Columns[0].Name = "Username"
 $Spreadsheet.Columns[1].Name = "Mailbox"
 $Spreadsheet.AutoSizeColumnsMode = "Fill"
+$Spreadsheet.AllowDrop = $true;
 $MainForm.Controls.Add($Spreadsheet)
 
 $StartBtn = New-Object System.Windows.Forms.Button
-$StartBtn.Location = Get-NewPosition $StartPosition 0 280
+$StartBtn.Location = Get-NewPosition $StartPosition 0 300
 $StartBtn.Width = $Width100
 $StartBtn.Height = 30
 $StartBtn.Font = $Paragraph
@@ -103,7 +129,7 @@ $StartBtn.Text = "START"
 $MainForm.Controls.Add($StartBtn)
 
 $OutputBox = New-Object System.Windows.Forms.Textbox
-$OutputBox.Location = Get-NewPosition $StartPosition 0 320
+$OutputBox.Location = Get-NewPosition $StartPosition 0 340
 $OutputBox.Width = $Width100
 $OutputBox.Height = 100
 $OutputBox.Font = $Paragraph
@@ -112,21 +138,6 @@ $OutputBox.Multiline = $true
 $MainForm.Controls.Add($OutputBox)
 
 # --- Event Handlers ---
-$MailboxSelectBtn.add_CheckedChanged({
-    $Spreadsheet.Refresh()
-    if ($MailboxSelectBtn.Checked) {
-        $Spreadsheet.ColumnCount = 2
-    }
-})
-
-$CalendarSelectBtn.add_CheckedChanged({
-    $Spreadsheet.Refresh()
-    if ($CalendarSelectBtn.Checked) {
-        $Spreadsheet.ColumnCount = 3
-        $Spreadsheet.Columns[2].Name = "Permission Level"
-    }
-})
-
 $StartBtn.Add_Click({
     if ($MailboxSelectBtn.Checked) {
         $Type = "Mailbox"
@@ -145,7 +156,6 @@ $StartBtn.Add_Click({
     # Removing a row mid-loop will stop the for-loop below.
     # Need to save the rows to be deleted here.
     $RowsToRemove = @()
-
     
     if ($Type -eq "Mailbox") {
         foreach ($Row in $Spreadsheet.Rows) {
@@ -178,17 +188,37 @@ $StartBtn.Add_Click({
     }
 })
 
+$MailboxSelectBtn.add_CheckedChanged({
+    $Spreadsheet.Refresh()
+    if ($MailboxSelectBtn.Checked) {
+        $Spreadsheet.ColumnCount = 2
+    }
+})
+
+$CalendarSelectBtn.add_CheckedChanged({
+    $Spreadsheet.Refresh()
+    if ($CalendarSelectBtn.Checked) {
+        $Spreadsheet.ColumnCount = 3
+        $Spreadsheet.Columns[2].Name = "Permission Level"
+    }
+})
+
 # --- Functions ---
-#To-do: come up with how to implement AutoMapping
 function Set-MailboxPermission {
     param (
         $Operation,
         $Username,
         $Mailbox
     )
+
+    $AutoMapping = $False
+    if ($AutoMapCheckBox.Checked) {
+        $AutoMapping = $True
+    }
+
     switch ($Operation) {
         "Adding" {
-            Add-MailboxPermission $Mailbox -User $Username -AccessRights FullAccess -InheritanceType All
+            Add-MailboxPermission $Mailbox -User $Username -AccessRights FullAccess -InheritanceType All -AutoMapping $AutoMapping
             Set-Mailbox $Mailbox -GrantSendOnBehalfTo @{Add="$Username"}
         }
         "Removing" {

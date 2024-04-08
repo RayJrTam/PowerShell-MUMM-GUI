@@ -203,6 +203,52 @@ $CalendarSelectBtn.add_CheckedChanged({
     }
 })
 
+$Spreadsheet.add_KeyDown({
+    param($sender, $e)
+
+    #$test = $e | Select-Object -Property *
+    #$test = $Spreadsheet | Select-Object -Property *
+    $V = 86
+    if ($e.KeyValue -eq $V -and $e.Modifiers -eq "Control") {
+        $CopyPaste = Get-Clipboard
+        $CurrentCell = $Spreadsheet.CurrentCell
+        $Row = $CurrentCell.RowIndex
+        $Col = $CurrentCell.ColumnIndex
+        
+        #$test = $CopyPaste | Select-Object -Property *
+        Write-Host $Row
+        Write-Host $Col
+        if ($CopyPaste.GetType().Name -eq "String") {
+            $Spreadsheet.Rows[$Row].Cells[$Col].Value = $CopyPaste
+            $Row += 1
+            if ($Row -ge $Spreadsheet.Rows.Count) {
+                $Spreadsheet.Rows.Add()
+            }
+        } else{
+            for (($i = 0); $i -le $CopyPaste.Length; $i++) {
+                Write-Host $CopyPaste[$i]
+                $Spreadsheet.Rows[$Row].Cells[$Col].Value = $CopyPaste[$i]
+                $Row += 1
+                if ($Row -ge $Spreadsheet.Rows.Count) {
+                    $Spreadsheet.Rows.Add()
+                }
+            }
+        }
+    }
+})
+
+$Spreadsheet.Add_CellClick({
+    param($sender, $e)
+    $Row = $e.RowIndex
+    $Col = $e.ColumnIndex
+    if ($Row -ge 0 -and $Col -ge 0) {
+        Write-Host "Cell clicked!"
+        #$Spreadsheet.Rows.Add()
+        #$Spreadsheet.CurrentCell = $Spreadsheet.Rows[0].Cells[1]
+        #$Spreadsheet.Rows[$Row].Cells[$Col].Value
+    }
+})
+
 # --- Functions ---
 function Set-MailboxPermission {
     param (

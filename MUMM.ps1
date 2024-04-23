@@ -58,7 +58,7 @@ $ParagraphFamily = "Poppins"
 $Paragraph = New-Object System.Drawing.Font($ParagraphFamily, $ParagraphSize)
 $StartPosition = New-Object System.Drawing.Point(10, 10)
 $Width100 = $MainForm.ClientSize.Width - 30
-$Width50 = ($MainForm.ClientSize.Width/2) - 30
+$Width50 = ($MainForm.ClientSize.Width/2) - 15
 #To-do: maybe there's an easier way to Fill width? Fill?
 
 # --- Mailbox Form ---
@@ -82,7 +82,7 @@ $RadioGroupBox1.Controls.Add($MailboxSelectBtn)
 $RadioGroupBox1.Controls.Add($CalendarSelectBtn)
 
 $RadioGroupBox2 = New-Object System.Windows.Forms.GroupBox
-$RadioGroupBox2.Location = Get-NewPosition $StartPosition ($MainForm.Width / 2) 0
+$RadioGroupBox2.Location = Get-NewPosition $StartPosition $Width50 0
 $RadioGroupBox2.Font = $Paragraph
 $RadioGroupBox2.Width = $Width50
 $RadioGroupBox2.Text = "Add or remove?"
@@ -120,13 +120,24 @@ $Spreadsheet.AutoSizeColumnsMode = "Fill"
 $Spreadsheet.AllowDrop = $true;
 $MainForm.Controls.Add($Spreadsheet)
 
+# To-do: Add a "clear table" button
+# To-do: Add a feature to 'delete' values from multiple highlighted cells
+
 $StartBtn = New-Object System.Windows.Forms.Button
 $StartBtn.Location = Get-NewPosition $StartPosition 0 300
-$StartBtn.Width = $Width100
+$StartBtn.Width = $Width50
 $StartBtn.Height = 30
 $StartBtn.Font = $Paragraph
 $StartBtn.Text = "START"
 $MainForm.Controls.Add($StartBtn)
+
+$ClearBtn = New-Object System.Windows.Forms.Button
+$ClearBtn.Location = Get-NewPosition $StartPosition $Width50 300
+$ClearBtn.Width = $Width50
+$ClearBtn.Height = 30
+$ClearBtn.Font = $Paragraph
+$ClearBtn.Text = "CLEAR"
+$MainForm.Controls.Add($ClearBtn)
 
 $OutputBox = New-Object System.Windows.Forms.Textbox
 $OutputBox.Location = Get-NewPosition $StartPosition 0 340
@@ -215,38 +226,30 @@ $Spreadsheet.add_KeyDown({
         $Row = $CurrentCell.RowIndex
         $Col = $CurrentCell.ColumnIndex
         
-        #$test = $CopyPaste | Select-Object -Property *
-        Write-Host $Row
-        Write-Host $Col
-        if ($CopyPaste.GetType().Name -eq "String") {
-            $Spreadsheet.Rows[$Row].Cells[$Col].Value = $CopyPaste
-            $Row += 1
-            if ($Row -ge $Spreadsheet.Rows.Count) {
+        # The behavior for the asterisk-row (or new row) is weird.
+        # It is not an 'actual' row.
+
+        if ($CopyPaste -is [String]) {
+            if ($Row -ge $Spreadsheet.Rows.Count-1) {
                 $Spreadsheet.Rows.Add()
             }
-        } else{
-            for (($i = 0); $i -le $CopyPaste.Length; $i++) {
-                Write-Host $CopyPaste[$i]
-                $Spreadsheet.Rows[$Row].Cells[$Col].Value = $CopyPaste[$i]
-                $Row += 1
-                if ($Row -ge $Spreadsheet.Rows.Count) {
+            $Spreadsheet.Rows[$Row].Cells[$Col].Value = $CopyPaste
+            $Row += 1
+        } else {
+            for (($i = 0); $i -lt $CopyPaste.Length; $i++) {
+                if ($Row -ge $Spreadsheet.Rows.Count-1) {
                     $Spreadsheet.Rows.Add()
                 }
+                $Spreadsheet.Rows[$Row].Cells[$Col].Value = $CopyPaste[$i]
+                $Row += 1
             }
         }
     }
 })
 
 $Spreadsheet.Add_CellClick({
-    param($sender, $e)
-    $Row = $e.RowIndex
-    $Col = $e.ColumnIndex
-    if ($Row -ge 0 -and $Col -ge 0) {
-        Write-Host "Cell clicked!"
-        #$Spreadsheet.Rows.Add()
-        #$Spreadsheet.CurrentCell = $Spreadsheet.Rows[0].Cells[1]
-        #$Spreadsheet.Rows[$Row].Cells[$Col].Value
-    }
+    Write-Host "Cell clicked!"
+    Write-Host $Spreadsheet.CurrentCell | Select-Object -Property *
 })
 
 # --- Functions ---
@@ -256,7 +259,7 @@ function Set-MailboxPermission {
         $Username,
         $Mailbox
     )
-
+    $Result = "done"
     $AutoMapping = $False
     if ($AutoMapCheckBox.Checked) {
         $AutoMapping = $True
@@ -277,7 +280,7 @@ function Set-MailboxPermission {
             Set-Mailbox $Mailbox -GrantSendOnBehalfTo @{remove="$Username"}
         }
     }
-
+    return $Result
 }
 
 function Set-CalendarPermission {

@@ -118,9 +118,9 @@ $Spreadsheet.Columns[0].Name = "Username"
 $Spreadsheet.Columns[1].Name = "Mailbox"
 $Spreadsheet.AutoSizeColumnsMode = "Fill"
 $Spreadsheet.AllowDrop = $true;
+$Spreadsheet.MultiSelect = $true
 $MainForm.Controls.Add($Spreadsheet)
 
-# To-do: Add a "clear table" button
 # To-do: Add a feature to 'delete' values from multiple highlighted cells
 
 $StartBtn = New-Object System.Windows.Forms.Button
@@ -153,7 +153,7 @@ $StartBtn.Add_Click({
     if ($MailboxSelectBtn.Checked) {
         $Type = "Mailbox"
     }
-    if ($CalendarSelectBtn:Checked) {
+    if ($CalendarSelectBtn.Checked) {
         $Type = "Calendar"
     }
 
@@ -187,7 +187,8 @@ $StartBtn.Add_Click({
             $PermissionLevel = $Row.Cells['Permission Level'].Value
             if ($Username -ne $null -and $Mailbox -ne $null -and $PermissionLevel -ne $null) {
                 $OutputBox.AppendText("$Operation $Username to/from $Mailbox...")
-                Set-CalendarPermission $Operation $Username $Mailbox $PermissionLevel
+                $CalendarName = $Mailbox + ":\Calendar"
+                Set-CalendarPermission $Operation $Username $CalendarName $PermissionLevel
                 $OutputBox.AppendText(" done!`n")
                 $RowsToRemove += $Row
             }
@@ -197,6 +198,12 @@ $StartBtn.Add_Click({
     foreach ($Row in $RowsToRemove) {
         $Spreadsheet.Rows.Remove($Row)
     }
+})
+
+$ClearBtn.Add_Click({
+    Write-Host $Spreadsheet | Select-Object -Property *
+    $Spreadsheet.Rows.Clear()
+    $Spreadsheet.Refresh()
 })
 
 $MailboxSelectBtn.add_CheckedChanged({
@@ -217,9 +224,20 @@ $CalendarSelectBtn.add_CheckedChanged({
 $Spreadsheet.add_KeyDown({
     param($sender, $e)
 
-    #$test = $e | Select-Object -Property *
+    $test = $e | Select-Object -Property *
     #$test = $Spreadsheet | Select-Object -Property *
+
     $V = 86
+    $Backspace = 8
+
+    # Backspace
+    if ($e.KeyValue -eq $Backspace -and $Spreadsheet.SelectedCells.Count -gt 1) {
+        foreach ($Cell in $Spreadsheet.SelectedCells) {
+            $Cell.Value = ""
+        }
+    }
+
+    # Ctrl + V
     if ($e.KeyValue -eq $V -and $e.Modifiers -eq "Control") {
         $CopyPaste = Get-Clipboard
         $CurrentCell = $Spreadsheet.CurrentCell
@@ -248,8 +266,8 @@ $Spreadsheet.add_KeyDown({
 })
 
 $Spreadsheet.Add_CellClick({
-    Write-Host "Cell clicked!"
-    Write-Host $Spreadsheet.CurrentCell | Select-Object -Property *
+    #Write-Host "Cell clicked!"
+    #Write-Host $Spreadsheet.CurrentCell | Select-Object -Property *
 })
 
 # --- Functions ---

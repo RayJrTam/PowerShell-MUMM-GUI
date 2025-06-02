@@ -49,17 +49,17 @@ function Get-NewPosition {
 # --- MAIN WINDOW ---
 $MainForm = New-Object System.Windows.Forms.Form
 $MainForm.Text = 'MUMM Script'
-$MainForm.Width = 1100
+$MainForm.Width = 1000
 $MainForm.Height = 600
+$MainForm.MaximumSize = 100
 
 # --- Style Variables ---
 $ParagraphSize = 12
 $ParagraphFamily = "Poppins"
 $Paragraph = New-Object System.Drawing.Font($ParagraphFamily, $ParagraphSize)
 $StartPosition = New-Object System.Drawing.Point(10, 10)
-$Width100 = $MainForm.ClientSize.Width - 30
-$Width50 = ($MainForm.ClientSize.Width/2) - 15
-#To-do: maybe there's an easier way to Fill width? Fill?
+$Width100 = $MainForm.ClientSize.Width - 20
+$Width50 = ($MainForm.ClientSize.Width/2) - 10
 
 # --- Mailbox Form ---
 $RadioGroupBox1 = New-Object System.Windows.Forms.GroupBox
@@ -121,8 +121,6 @@ $Spreadsheet.AllowDrop = $true;
 $Spreadsheet.MultiSelect = $true
 $MainForm.Controls.Add($Spreadsheet)
 
-# To-do: Add a feature to 'delete' values from multiple highlighted cells
-
 $StartBtn = New-Object System.Windows.Forms.Button
 $StartBtn.Location = Get-NewPosition $StartPosition 0 300
 $StartBtn.Width = $Width50
@@ -146,7 +144,10 @@ $OutputBox.Height = 100
 $OutputBox.Font = $Paragraph
 $OutputBox.ReadOnly = $true
 $OutputBox.Multiline = $true
+$OutputBox.BackColor = "#FFFFFF"
 $MainForm.Controls.Add($OutputBox)
+
+# To-do: add a pop-up that shows permissions for each mailbox/calendar actioned
 
 # --- Event Handlers ---
 $StartBtn.Add_Click({
@@ -175,7 +176,8 @@ $StartBtn.Add_Click({
             if ($Username -ne $null -and $Mailbox -ne $null) {
                 $OutputBox.AppendText("$Operation $Username to/from $Mailbox...")
                 Set-MailboxPermission $Operation $Username $Mailbox
-                $OutputBox.AppendText(" done!`n")
+                $OutputBox.AppendText(" done!")
+                $OutputBox.AppendText([System.Environment]::NewLine)
                 $RowsToRemove += $Row
             }
         }
@@ -189,7 +191,8 @@ $StartBtn.Add_Click({
                 $OutputBox.AppendText("$Operation $Username to/from $Mailbox...")
                 $CalendarName = $Mailbox + ":\Calendar"
                 Set-CalendarPermission $Operation $Username $CalendarName $PermissionLevel
-                $OutputBox.AppendText(" done!`n")
+                $OutputBox.AppendText(" done!")
+                $OutputBox.AppendText([System.Environment]::NewLine)
                 $RowsToRemove += $Row
             }
         }
@@ -311,7 +314,7 @@ function Set-CalendarPermission {
 
     switch ($Operation) {
         "Adding" {
-            Add-MailboxFolderPermission $Calendar -User $Username -AccessRights $PermissionLevel -ErrorAction Stop
+            Add-MailboxFolderPermission $Calendar -User $Username -AccessRights $PermissionLevel -ErrorAction SilentlyContinue
         }
         "Removing" {
             Remove-MailboxFolderPermission $Calendar -User $Username -Confirm:$False -ErrorAction Stop
